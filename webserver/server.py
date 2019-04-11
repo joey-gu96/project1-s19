@@ -50,16 +50,6 @@ DATABASEURI = "postgresql://"+DB_USER+":"+DB_PASSWORD+"@"+DB_SERVER+"/w4111"
 engine = create_engine(DATABASEURI)
 
 
-# Here we create a test table and insert some values in it
-engine.execute("""DROP TABLE IF EXISTS test;""")
-engine.execute("""CREATE TABLE IF NOT EXISTS test (
-  id serial,
-  name text
-);""")
-engine.execute("""INSERT INTO test(name) VALUES ('grace hopper'), ('alan turing'), ('ada lovelace');""")
-
-
-
 @app.before_request
 def before_request():
   """
@@ -114,7 +104,7 @@ def index():
   """
 
   # DEBUG: this is debugging code to see what request looks like
-  print( request.args)
+  print(request.args)
 
 
   #
@@ -246,14 +236,14 @@ def submit_reservation():
 def get_res_name():
   rid = request.form['rid']
   # reserve_time = datetime.strptime(request.form['time'], "%Y-%m-%d").date()
-  reserve_time = request.form['time']
+  reserve_time = str(request.form['time'])
   no_guests = request.form['num_guests']
   uid = request.form['userid']
 
   cursor = g.conn.execute("SELECT MAX(reid) FROM reservation_reserved")
   reid = int(cursor.fetchone()[0]) + 1
   cursor.close()
-  cursor = g.conn.execute("SELECT res_name FROM restaurants WHERE rid = %s" % (rid))
+  cursor = g.conn.execute("SELECT res_name FROM restaurants WHERE rid = %s", (rid,))
   res_name = cursor.fetchone()[0]
   cursor.close()
 
@@ -263,7 +253,7 @@ def get_res_name():
   cursor.close()
 
   try:
-    g.conn.execute('INSERT INTO reservation_reserved(reserve_time, no_guests, reid, rid, uid) VALUES (\'%s\', %s, %s, %s, %s)' % (reserve_time, no_guests, reid, rid, uid));
+    g.conn.execute('INSERT INTO reservation_reserved(reserve_time, no_guests, reid, rid, uid) VALUES (%s, %s, %s, %s, %s)', (reserve_time, no_guests, reid, rid, uid));
 
   except:
     return render_template("wrong_input.html")
@@ -341,8 +331,8 @@ def order_summary():
   cursor.close()
 
 # Insert into order_assigned_to and place
-  g.conn.execute('INSERT INTO order_assigned_to(oid, gid, o_name, o_add, o_phone, tip, payment) VALUES (%s, %s, \'%s\', \'%s\', %s, %s, \'%s\')' % (oid, gid, o_name, o_add, o_phone, tip, payment))
-  g.conn.execute('INSERT INTO place(rid, uid, oid) VALUES (%s, %s, %s)' % (rid, uid, oid))
+  g.conn.execute('INSERT INTO order_assigned_to(oid, gid, o_name, o_add, o_phone, tip, payment) VALUES (%s, %s, %s, %s, %s, %s, %s)', (oid, gid, o_name, o_add, o_phone, tip, payment))
+  g.conn.execute('INSERT INTO place(rid, uid, oid) VALUES (%s, %s, %s)', (rid, uid, oid))
 
 # Deal with dishes and calculate the total price
   cmd = 'SELECT dish_name, price, did FROM restaurants res JOIN dish_provide dp ON res.rid = dp.rid WHERE res.rid=(:rid1)';
@@ -364,7 +354,7 @@ def order_summary():
         cursor = g.conn.execute(text(cmd))
         iid = int(cursor.fetchone()[0]) + 1
         cursor.close()
-        g.conn.execute('INSERT INTO include(oid, did, rid, iid) VALUES (%s, %s, %s, %s)' % (oid, did, rid, iid))
+        g.conn.execute('INSERT INTO include(oid, did, rid, iid) VALUES (%s, %s, %s, %s)', (oid, did, rid, iid))
 
   return render_template("order_summary.html", user_name = user_name, o_phone=o_phone, o_add=o_add, o_name=o_name, tip=tip, payment=payment, oid = oid, res_name = res_name, uid = uid, 
     dg_name = dg_name, dg_phone = dg_phone, total = total)
@@ -378,7 +368,7 @@ def user_create():
   uid = int(cursor.fetchone()[0]) + 1
   cursor.close()
 
-  g.conn.execute('INSERT INTO users(user_name, uid) VALUES (\'%s\', %s)' % (user_name, uid))
+  g.conn.execute('INSERT INTO users(user_name, uid) VALUES (%s, %s)', (user_name, uid))
 
   return render_template("user_create.html", user_name = user_name, uid = uid)
 
