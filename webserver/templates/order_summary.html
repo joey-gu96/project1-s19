@@ -8,34 +8,78 @@
 
 
 <body>
-  <h1><RP></RP>Order summary</h1>
+  <h1><RP></RP>Successfully ordered!</h1>
 
-  <div>
-    <div>Restaurant: {{res_name}}</div>
+  <table border = 1>
 
-    <div>User id: {{uid}}</div>
+    <tr>
+      <th> Restaurant </th>
+      <td> {{ res_name }} </td>
+    </tr>
 
-    <div>Delivery address:  {{o_add}}</div>
+    <tr>
+      <th> User id </th>
+      <td> {{ uid }} </td>
+    </tr>
 
-    <div>Name: {{o_name}}</div>
+    <tr>
+      <th> User name </th>
+      <td> {{ user_name }} </td>
+    </tr>
 
-    <div>Phone number: {{o_phone}}</div>
+    <tr>
+      <th> Delivery address </th>
+      <td> {{ o_add }} </td>
+    </tr>
 
-    <div>Tip: {{tip}}</div>
+    <tr>
+      <th> Name </th>
+      <td> {{ o_name }} </td>
+    </tr>
 
-    <div>Payment method: {{payment}}</div>
+    <tr>
+      <th> Phone number </th>
+      <td> {{ o_phone }} </td>
+    </tr>
 
-    <div>Order id: {{oid}}</div>
+    <tr>
+      <th> Tip </th>
+      <td> {{ tip }} </td>
+    </tr>
 
-    <div>Payment method: {{payment}}</div>
+    <tr>
+      <th> Payment method </th>
+      <td> {{ payment }} </td>
+    </tr>
 
-    <div>Delivery guy: {{dg_name}}</div>
+    <tr>
+      <th> Order id </th>
+      <td> {{ oid }} </td>
+    </tr>
 
-    <div>Delivery guy phone number: {{dg_phone}}</div>
+    <tr>
+      <th> Payment method </th>
+      <td> {{ payment }} </td>
+    </tr>
 
-    <div>Total price: {{total}}</div>
+    <tr>
+      <th> Delivery guy </th>
+      <td> {{ dg_name }} </td>
+    </tr>
 
-  </div>
+    <tr>
+      <th> Delivery guy phone number </th>
+      <td> {{ dg_phone }} </td>
+    </tr>
+
+    <tr>
+      <th> Total price </th>
+      <td> {{ total }} </td>
+    </tr>
+
+  </table>
+
+  <p><a href="/">Go back</a></p>
 
 </body>
 

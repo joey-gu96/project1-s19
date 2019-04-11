@@ -180,10 +180,19 @@ def search():
   cmd = 'SELECT reserve_time, no_guests, rid, uid FROM reservation_reserved WHERE reid = (:reid1)';
   cursor = g.conn.execute(text(cmd), reid1 = reid)
   res = cursor.fetchone()
+
+  if not res:
+    return render_template("no_result.html", data = reid)
+
   reserve_time, no_guests, rid, uid = res
   cursor.close()
 
-  context = dict(reserve_time=reserve_time, no_guests=no_guests, rid=rid, uid=uid, reid = reid)
+  cmd = 'SELECT user_name FROM users WHERE uid = (:uid1)';
+  cursor = g.conn.execute(text(cmd), uid1 = uid)
+  user_name = cursor.fetchone()[0]
+  cursor.close()
+
+  context = dict(user_name = user_name, reserve_time=reserve_time, no_guests=no_guests, rid=rid, uid=uid, reid = reid)
   return render_template("search_reservation.html", **context)
 
 
@@ -193,6 +202,10 @@ def search_order():
   cmd = 'SELECT O.o_phone, O.o_add, O.o_name, O.tip, O.payment, R.res_name, P.uid, DG.dg_name, DG.dg_phone FROM restaurants R, place P, order_assigned_to O, delivery_guy DG WHERE R.rid=P.rid AND O.oid=P.oid  AND O.gid=DG.gid AND O.oid = (:oid1)';
   cursor = g.conn.execute(text(cmd), oid1 = oid)
   res = cursor.fetchone()
+
+  if not res:
+    return render_template("no_result.html", data = oid)
+
   o_phone, o_add, o_name, tip, payment, res_name, uid, dg_name, dg_phone = res
   cursor.close()
 
@@ -201,7 +214,12 @@ def search_order():
   total = float(cursor.fetchone()[0]) + float(tip)
   cursor.close()
 
-  context = dict(o_phone=o_phone, o_add=o_add, o_name=o_name, tip=tip, payment=payment, oid = oid, res_name = res_name, uid = uid, 
+  cmd = 'SELECT user_name FROM users WHERE uid = (:uid1)';
+  cursor = g.conn.execute(text(cmd), uid1 = uid)
+  user_name = cursor.fetchone()[0]
+  cursor.close()
+
+  context = dict(user_name = user_name, o_phone=o_phone, o_add=o_add, o_name=o_name, tip=tip, payment=payment, oid = oid, res_name = res_name, uid = uid, 
     dg_name = dg_name, dg_phone = dg_phone, total = total)
 
   return render_template("search_order.html", **context)
@@ -231,16 +249,26 @@ def get_res_name():
   reserve_time = request.form['time']
   no_guests = request.form['num_guests']
   uid = request.form['userid']
+
   cursor = g.conn.execute("SELECT MAX(reid) FROM reservation_reserved")
   reid = int(cursor.fetchone()[0]) + 1
   cursor.close()
   cursor = g.conn.execute("SELECT res_name FROM restaurants WHERE rid = %s" % (rid))
   res_name = cursor.fetchone()[0]
   cursor.close()
-  cmd = 'INSERT INTO reservation_reserved(reserve_time, no_guests, reid, rid, uid) VALUES (%s, %s, %s, %s, %s)';
-  g.conn.execute('INSERT INTO reservation_reserved(reserve_time, no_guests, reid, rid, uid) VALUES (\'%s\', %s, %s, %s, %s)' % (reserve_time, no_guests, reid, rid, uid));
 
-  return render_template("reservation_summary.html", reserve_time = reserve_time, no_guests = no_guests, reid = reid, res_name = res_name, uid = uid)
+  cmd = 'SELECT user_name FROM users WHERE uid = (:uid1)';
+  cursor = g.conn.execute(text(cmd), uid1 = uid)
+  user_name = cursor.fetchone()[0]
+  cursor.close()
+
+  try:
+    g.conn.execute('INSERT INTO reservation_reserved(reserve_time, no_guests, reid, rid, uid) VALUES (\'%s\', %s, %s, %s, %s)' % (reserve_time, no_guests, reid, rid, uid));
+
+  except:
+    return render_template("wrong_input.html")
+
+  return render_template("reservation_summary.html", user_name = user_name, reserve_time = reserve_time, no_guests = no_guests, reid = reid, res_name = res_name, uid = uid)
 
 
 
@@ -265,6 +293,7 @@ def choose_dishes():
   for result in cursor:
     dishes_price.append([result['dish_name'], result['price']])
   cursor.close()
+
   cmd = 'SELECT res_name FROM restaurants WHERE rid=(:rid1)';
   cursor = g.conn.execute(text(cmd), rid1 = rid)
   res_name = cursor.fetchone()[0]
@@ -285,6 +314,11 @@ def order_summary():
   tip = int(request.form['tip'])
   payment = request.form['payment']
   uid = request.form['uid']
+
+  cmd = 'SELECT user_name FROM users WHERE uid = (:uid1)';
+  cursor = g.conn.execute(text(cmd), uid1 = uid)
+  user_name = cursor.fetchone()[0]
+  cursor.close()
 
 # Get the name of restaurant
   cmd = 'SELECT res_name FROM restaurants WHERE rid=(:rid1)';
@@ -323,7 +357,7 @@ def order_summary():
     quant = int(request.form[i[0]])
     if quant!=0:
       did = i[2]
-      price = int(i[1])
+      price = float(i[1])
       total += price * quant
       for i in range(quant):
         cmd = 'SELECT MAX(iid) FROM include'
@@ -332,8 +366,21 @@ def order_summary():
         cursor.close()
         g.conn.execute('INSERT INTO include(oid, did, rid, iid) VALUES (%s, %s, %s, %s)' % (oid, did, rid, iid))
 
-  return render_template("order_summary.html", o_phone=o_phone, o_add=o_add, o_name=o_name, tip=tip, payment=payment, oid = oid, res_name = res_name, uid = uid, 
+  return render_template("order_summary.html", user_name = user_name, o_phone=o_phone, o_add=o_add, o_name=o_name, tip=tip, payment=payment, oid = oid, res_name = res_name, uid = uid, 
     dg_name = dg_name, dg_phone = dg_phone, total = total)
+
+
+@app.route('/user_create', methods=['POST', 'GET'])
+def user_create():
+  user_name = request.form["name"]
+  cmd = 'SELECT MAX(uid) FROM users'
+  cursor = g.conn.execute(text(cmd))
+  uid = int(cursor.fetchone()[0]) + 1
+  cursor.close()
+
+  g.conn.execute('INSERT INTO users(user_name, uid) VALUES (\'%s\', %s)' % (user_name, uid))
+
+  return render_template("user_create.html", user_name = user_name, uid = uid)
 
 
 @app.route('/login')

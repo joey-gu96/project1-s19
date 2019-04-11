@@ -50,7 +50,7 @@
 
     <td style="text-align:center">
     Quantity:
-    <input type="number" name="{{n[0]}}" value="0" min="0" max="20" step="1">
+    <input type="number" name="{{n[0]}}" value="0" min="0" max="20" step="1" required>
      </td>
   </tr>
   {% endfor %}
@@ -58,11 +58,11 @@
   </table>
   </div>
 
-  <p>Delivery address: <input type="text" name="o_add"> </p>
-  <p>Name: <input type="text" name="o_name"></p>
-  <p>User id (from 1 to {{max_uid}}): <input type="text" name="uid"></p>
-  <p>Phone number (of length 10): <input type="number" name="o_phone" step="1"></p>
-  <p>Tip (int only): <input type="number" name="tip" step="1"></p>
+  <p>Delivery address: <input type="text" name="o_add" required> </p>
+  <p>Name: <input type="text" name="o_name" required></p>
+  <p>User id (from 1 to {{max_uid}}): <input type="number" name="uid" min="1" max="{{max_uid}}" step="1" required></p>
+  <p>Phone number (of length 10): <input type="number" name="o_phone" min="1000000000" max="9999999999" step="1" required></p>
+  <p>Tip (int only): <input type="number" name="tip" min="0" step="1" required></p>
   <p>Payment method:  <select name='payment'>
       <option value="Cash"> Cash </option>
       <option value="Credit Card"> Credit Card </option>
@@ -73,7 +73,7 @@
   </div>
 
 
-<input type="submit" value="Finish order "></p>
+<input type="submit" value="Finish order"></p>
 </form>
 
 <p><a href="/">Go back</a></p>
