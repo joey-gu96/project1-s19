@@ -46,7 +46,7 @@ DATABASEURI = "postgresql://"+DB_USER+":"+DB_PASSWORD+"@"+DB_SERVER+"/w4111"
 
 #
 # This line creates a database engine that knows how to connect to the URI above
-#
+
 engine = create_engine(DATABASEURI)
 
 
@@ -114,17 +114,20 @@ def index():
   """
 
   # DEBUG: this is debugging code to see what request looks like
-  print (request.args)
+  print( request.args)
 
 
   #
   # example of a database query
   #
-  cursor = g.conn.execute("SELECT name FROM test")
-  names = []
+  cursor = g.conn.execute("SELECT reid FROM reservation_reserved")
+  reservation = []
   for result in cursor:
-    names.append(result['name'])  # can also be accessed using result[0]
+    reservation.append(result[0])  # can also be accessed using result[0]
   cursor.close()
+
+
+
 
   #
   # Flask uses Jinja templates, which is an extension to HTML where you can
@@ -152,7 +155,7 @@ def index():
   #     <div>{{n}}</div>
   #     {% endfor %}
   #
-  context = dict(data = names)
+  context = dict(data = reservation)
 
 
   #
@@ -169,19 +172,168 @@ def index():
 # notice that the functio name is another() rather than index()
 # the functions for each app.route needs to have different names
 #
-@app.route('/another')
-def another():
-  return render_template("anotherfile.html")
+
+@app.route('/search_reservation', methods=['POST'])
+def search():
+  reid = request.form['name']
+  #print(reid)
+  cmd = 'SELECT reserve_time, no_guests, rid, uid FROM reservation_reserved WHERE reid = (:reid1)';
+  cursor = g.conn.execute(text(cmd), reid1 = reid)
+  res = cursor.fetchone()
+  reserve_time, no_guests, rid, uid = res
+  cursor.close()
+
+  context = dict(reserve_time=reserve_time, no_guests=no_guests, rid=rid, uid=uid, reid = reid)
+  return render_template("search_reservation.html", **context)
 
 
-# Example of adding new data to the database
-@app.route('/add', methods=['POST'])
-def add():
-  name = request.form['name']
-  print (name)
-  cmd = 'INSERT INTO test(name) VALUES (:name1), (:name2)';
-  g.conn.execute(text(cmd), name1 = name, name2 = name);
-  return redirect('/')
+@app.route('/search_order', methods=['POST'])
+def search_order():
+  oid = request.form['name']
+  cmd = 'SELECT O.o_phone, O.o_add, O.o_name, O.tip, O.payment, R.res_name, P.uid, DG.dg_name, DG.dg_phone FROM restaurants R, place P, order_assigned_to O, delivery_guy DG WHERE R.rid=P.rid AND O.oid=P.oid  AND O.gid=DG.gid AND O.oid = (:oid1)';
+  cursor = g.conn.execute(text(cmd), oid1 = oid)
+  res = cursor.fetchone()
+  o_phone, o_add, o_name, tip, payment, res_name, uid, dg_name, dg_phone = res
+  cursor.close()
+
+  cmd = 'SELECT SUM(D.price) FROM order_assigned_to O, include I, dish_provide D WHERE  O.oid=I.oid AND I.did=D.did AND I.rid=D.rid AND O.oid=(:oid1);';
+  cursor = g.conn.execute(text(cmd), oid1 = oid)
+  total = float(cursor.fetchone()[0]) + float(tip)
+  cursor.close()
+
+  context = dict(o_phone=o_phone, o_add=o_add, o_name=o_name, tip=tip, payment=payment, oid = oid, res_name = res_name, uid = uid, 
+    dg_name = dg_name, dg_phone = dg_phone, total = total)
+
+  return render_template("search_order.html", **context)
+
+
+@app.route('/submit_reservation', methods=['POST'])
+def submit_reservation():
+  cursor = g.conn.execute("SELECT rid, res_name FROM restaurants")
+  names = []
+  for result in cursor:
+    names.append([result['res_name'], result['rid']])
+  cursor.close()
+
+  cursor = g.conn.execute("SELECT MAX(uid) FROM users")
+  max_uid = cursor.fetchone()[0]
+  cursor.close()
+
+  context = dict(data = names, max_uid = max_uid)
+
+  return render_template("submit_reservation.html", **context)
+
+
+@app.route('/reservation_summary', methods = ['POST', 'GET'])
+def get_res_name():
+  rid = request.form['rid']
+  # reserve_time = datetime.strptime(request.form['time'], "%Y-%m-%d").date()
+  reserve_time = request.form['time']
+  no_guests = request.form['num_guests']
+  uid = request.form['userid']
+  cursor = g.conn.execute("SELECT MAX(reid) FROM reservation_reserved")
+  reid = int(cursor.fetchone()[0]) + 1
+  cursor.close()
+  cursor = g.conn.execute("SELECT res_name FROM restaurants WHERE rid = %s" % (rid))
+  res_name = cursor.fetchone()[0]
+  cursor.close()
+  cmd = 'INSERT INTO reservation_reserved(reserve_time, no_guests, reid, rid, uid) VALUES (%s, %s, %s, %s, %s)';
+  g.conn.execute('INSERT INTO reservation_reserved(reserve_time, no_guests, reid, rid, uid) VALUES (\'%s\', %s, %s, %s, %s)' % (reserve_time, no_guests, reid, rid, uid));
+
+  return render_template("reservation_summary.html", reserve_time = reserve_time, no_guests = no_guests, reid = reid, res_name = res_name, uid = uid)
+
+
+
+@app.route('/submit_order', methods=['POST'])
+def submit_order():
+  
+  cmd = 'SELECT rid, res_name FROM restaurants';
+  cursor = g.conn.execute(text(cmd))
+  restaurants = []
+  for result in cursor:
+    restaurants.append([result[0], result[1]])
+  cursor.close()
+  return render_template("submit_order.html", restaurants=restaurants)
+
+
+@app.route('/choose_dishes', methods=['POST', 'GET'])
+def choose_dishes():
+  rid =  request.form['rid']
+  cmd = 'SELECT dish_name, price FROM restaurants res JOIN dish_provide dp ON res.rid = dp.rid WHERE res.rid=(:rid1)';
+  cursor = g.conn.execute(text(cmd), rid1 = rid)
+  dishes_price = []
+  for result in cursor:
+    dishes_price.append([result['dish_name'], result['price']])
+  cursor.close()
+  cmd = 'SELECT res_name FROM restaurants WHERE rid=(:rid1)';
+  cursor = g.conn.execute(text(cmd), rid1 = rid)
+  res_name = cursor.fetchone()[0]
+  cursor.close()
+
+  cursor = g.conn.execute("SELECT MAX(uid) FROM users")
+  max_uid = cursor.fetchone()[0]
+  cursor.close()
+
+  return render_template("choose_dishes.html", dishes_price=dishes_price, rid = rid, res_name = res_name, max_uid = max_uid)
+
+@app.route('/order_summary', methods=['POST', 'GET'])
+def order_summary():
+  rid = request.form['rid']
+  o_name = request.form['o_name']
+  o_add = request.form['o_add']
+  o_phone = request.form['o_phone']
+  tip = int(request.form['tip'])
+  payment = request.form['payment']
+  uid = request.form['uid']
+
+# Get the name of restaurant
+  cmd = 'SELECT res_name FROM restaurants WHERE rid=(:rid1)';
+  cursor = g.conn.execute(text(cmd), rid1 = rid)
+  res_name = cursor.fetchone()[0]
+  cursor.close()
+
+# Generate oid
+  cmd = 'SELECT MAX(oid) FROM order_assigned_to'
+  cursor = g.conn.execute(text(cmd))
+  oid = int(cursor.fetchone()[0]) + 1
+  cursor.close()
+
+# Generate gid and get information of delivery_guy
+  gid = oid % 10 + 1
+  cmd = 'SELECT dg_name, dg_phone FROM delivery_guy WHERE gid=(:gid1)';
+  cursor = g.conn.execute(text(cmd), gid1 = gid)
+  res = cursor.fetchone()
+  dg_name, dg_phone = res[0], res[1]
+  cursor.close()
+
+# Insert into order_assigned_to and place
+  g.conn.execute('INSERT INTO order_assigned_to(oid, gid, o_name, o_add, o_phone, tip, payment) VALUES (%s, %s, \'%s\', \'%s\', %s, %s, \'%s\')' % (oid, gid, o_name, o_add, o_phone, tip, payment))
+  g.conn.execute('INSERT INTO place(rid, uid, oid) VALUES (%s, %s, %s)' % (rid, uid, oid))
+
+# Deal with dishes and calculate the total price
+  cmd = 'SELECT dish_name, price, did FROM restaurants res JOIN dish_provide dp ON res.rid = dp.rid WHERE res.rid=(:rid1)';
+  cursor = g.conn.execute(text(cmd), rid1 = rid)
+  dishes_price = []
+  for result in cursor:
+    dishes_price.append([result['dish_name'], result['price'], result['did']])
+
+  total = tip
+
+  for i in dishes_price:
+    quant = int(request.form[i[0]])
+    if quant!=0:
+      did = i[2]
+      price = int(i[1])
+      total += price * quant
+      for i in range(quant):
+        cmd = 'SELECT MAX(iid) FROM include'
+        cursor = g.conn.execute(text(cmd))
+        iid = int(cursor.fetchone()[0]) + 1
+        cursor.close()
+        g.conn.execute('INSERT INTO include(oid, did, rid, iid) VALUES (%s, %s, %s, %s)' % (oid, did, rid, iid))
+
+  return render_template("order_summary.html", o_phone=o_phone, o_add=o_add, o_name=o_name, tip=tip, payment=payment, oid = oid, res_name = res_name, uid = uid, 
+    dg_name = dg_name, dg_phone = dg_phone, total = total)
 
 
 @app.route('/login')

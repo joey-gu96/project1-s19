@@ -8,19 +8,34 @@
 
 
 <body>
-  <h1>Some famous Computer Scientists</h1>
-  <div>{{data}}</div>
+  
 
-  <div>
-    {% for n in data %}
-    <div>{{n}}</div>
-    {% endfor %}
-  </div>
+<!--<p><a href="/another">Go to the other page</a></p> -->
 
-<p><a href="/another">Go to the other page</a></p>
+<h3>Search for reservation</h3>
 
-<form method="POST" action="/add">
-<p>Name of new computer scientist: <input type="text" name="name"> <input type="submit" value="Add"></p>
+<form method="POST" action="/search_reservation">
+<p>Reservation id: <input type="text" name="name"> <input type="submit" value="Search Reservation"></p>
+</form>
+
+<h3>Search for order</h3>
+
+<form method="POST" action="/search_order">
+<p>Order id: <input type="text" name="name"> <input type="submit" value="Search Order"></p>
+</form>
+
+<h3>Reserve online</h3>
+
+<form method="POST" action="/submit_reservation">
+
+<input type="submit" value="Reserve online "></p>
+</form>
+
+<h3>Order online</h3>
+
+<form method="POST" action="/submit_order">
+
+<input type="submit" value="Order online "></p>
 </form>
 
 </body>
