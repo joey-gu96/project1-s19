@@ -330,10 +330,6 @@ def order_summary():
   dg_name, dg_phone = res[0], res[1]
   cursor.close()
 
-# Insert into order_assigned_to and place
-  g.conn.execute('INSERT INTO order_assigned_to(oid, gid, o_name, o_add, o_phone, tip, payment) VALUES (%s, %s, %s, %s, %s, %s, %s)', (oid, gid, o_name, o_add, o_phone, tip, payment))
-  g.conn.execute('INSERT INTO place(rid, uid, oid) VALUES (%s, %s, %s)', (rid, uid, oid))
-
 # Deal with dishes and calculate the total price
   cmd = 'SELECT dish_name, price, did FROM restaurants res JOIN dish_provide dp ON res.rid = dp.rid WHERE res.rid=(:rid1)';
   cursor = g.conn.execute(text(cmd), rid1 = rid)
@@ -342,6 +338,16 @@ def order_summary():
     dishes_price.append([result['dish_name'], result['price'], result['did']])
 
   total = tip
+  quant = 0
+
+  for i in dishes_price:
+  	quant += int(request.form[i[0]])
+  if quant == 0:
+  	return render_template("no_dishes.html")
+
+  # Insert into order_assigned_to and place
+  g.conn.execute('INSERT INTO order_assigned_to(oid, gid, o_name, o_add, o_phone, tip, payment) VALUES (%s, %s, %s, %s, %s, %s, %s)', (oid, gid, o_name, o_add, o_phone, tip, payment))
+  g.conn.execute('INSERT INTO place(rid, uid, oid) VALUES (%s, %s, %s)', (rid, uid, oid))
 
   for i in dishes_price:
     quant = int(request.form[i[0]])
